@@ -1,0 +1,18 @@
+transformers==4.50.0
+lightfm==1.17
+scipy==1.10.0
+numpy==1.26.4
+spacy==3.5.0
+Flask==2.2.2   # Latest version of Flask 2.x
+werkzeug==2.2.2  # Ensure this version is compatible
+textblob==0.17.1
+matplotlib==3.7.1
+plotly==5.10.0
+openai==0.27.0
+torch==2.6.0
+kaleido==0.2.1
+faiss-cpu==1.7.3 
+sentence-transformers==2.2.0 
+vaderSentiment==3.3.2 
+langchain==0.0.125
+huggingface-hub==0.28.0
