@@ -18,8 +18,8 @@
  Modern customers expect highly personalized experiences that cater to their unique preferences
 
 ## 🎥 Demo
-🔗 [Live Demo](#) (if applicable)  
-📹 [Video Demo](#) (if applicable)  
+🔗 [Live Demo](#demo) (if applicable)  
+📹 [Video Demo](#demo) (if applicable)  
 🖼️ Screenshots:
 
 ![Screenshot 1](link-to-image)
