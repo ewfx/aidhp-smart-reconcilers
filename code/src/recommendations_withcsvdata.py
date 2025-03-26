@@ -180,25 +180,3 @@ def recommend_products(customer_id, top_k=10):
     })
     
     return recommended_products
-
-
-# Recommend for a sample customer
-customer_id = "100"  # Example customer ID
-top_products = recommend_products(customer_id)
-print(f"Top recommended products for Customer {customer_id}: {top_products}")
-
-
-# Recommend for a sample customer
-customer_id = "10"  # Example customer ID
-top_products = recommend_products(customer_id)
-print(f"Top recommended products for Customer {customer_id}: {top_products}")
-
-
-# Recommend for a sample customer
-customer_id = "77"  # Example customer ID
-top_products = recommend_products(customer_id)
-print(f"Top recommended products for Customer {customer_id}: {top_products}")
-
-customer_list = ["10", "20", "30"]  # Example Customers
-for cust_id in customer_list:
-    print(f"Top Products for Customer {cust_id}: {recommend_products(cust_id)}")

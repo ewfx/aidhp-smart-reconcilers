@@ -1,8 +1,9 @@
-transformers==4.50.0
+transformers
 lightfm==1.17
 scipy==1.10.0
 numpy==1.26.4
-spacy==3.5.0
+spacy==3.8.4
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz
 Flask==2.2.2   # Latest version of Flask 2.x
 werkzeug==2.2.2  # Ensure this version is compatible
 textblob==0.17.1
@@ -12,7 +13,21 @@ openai==0.27.0
 torch==2.6.0
 kaleido==0.2.1
 faiss-cpu==1.7.3 
-sentence-transformers==2.2.0 
+sentence-transformers
 vaderSentiment==3.3.2 
-langchain==0.0.125
-huggingface-hub==0.28.0
+langchain==0.3.21
+huggingface-hub
+tensorflow==2.15
+tensorflow-datasets==4.9.8
+tensorflow-io-gcs-filesystem==0.31.0
+tensorflow-metadata==1.16.1
+tensorflow-recommenders==0.7.3
+keras==2.15.0
+tf-keras
+pandas==2.2.3
+datasets
+torch
+accelerate
+scikit-learn
+vosk
+requests

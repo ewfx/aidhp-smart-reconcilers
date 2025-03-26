@@ -26,3 +26,5 @@ insurance, card(debit/cards),FDs,RDs,SIP(Mutual Funds)
 3. product/investment recommendations : Clustering model  - Pavani
 4. Social media activities/sentiment analysis : Priya
 
+
+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

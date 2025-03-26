@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import sqlite3
 import random
 import secrets
@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import plotly.graph_objects as go
 import base64
-from transformers import GPT2LMHeadModel, GPT2Tokenizer, pipeline, T5ForConditionalGeneration, T5Tokenizer
+from transformers import GPT2LMHeadModel, GPT2Tokenizer, pipeline, T5ForConditionalGeneration, T5Tokenizer, DistilBertForSequenceClassification, DistilBertTokenizer, TrainingArguments, Trainer
 import openai  # Import OpenAI for GPT-3 or GPT-4 integration
 import torch
 from lightfm import LightFM
@@ -24,7 +24,21 @@ from collections import defaultdict
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import HumanMessage, AIMessage
 import recommendations_withcsvdata as prod_recommends
+from torch.utils.data import DataLoader, Dataset as TorchDataset
+import pandas as pd
+from datasets import Dataset as PandasDataset
+import sys
+import json
+import queue
+#import sounddevice as sd
+from vosk import Model, KaldiRecognizer
+import os, requests, zipfile
 
+
+# Run setup.sh if it exists
+if os.path.exists("setup.sh"):
+    os.system("bash setup.sh")
+    
 # Initialize Flask app
 app = Flask(__name__)
 # Set the secret key (use a random key for security)
@@ -202,6 +216,151 @@ def recommendations_based_on_tweets(username):
         print(f"Item: {item}, Image URL: {image_url}")
     
     return recommendations_with_images
+
+# Create custom Dataset to handle the text and label input for the model
+class TransactionDataset(TorchDataset):  # Use TorchDataset here
+    def __init__(self, transactions, tokenizer):
+        self.transactions = transactions
+        self.tokenizer = tokenizer
+        self.max_len = 256
+
+    def __len__(self):
+        return len(self.transactions)
+
+    def __getitem__(self, index):
+        transaction = self.transactions[index]
+        description = transaction[2]  # Assuming the description is in the 3rd element of the transaction
+        inputs = self.tokenizer(description, truncation=True, padding="max_length", max_length=self.max_len, return_tensors="pt")
+        print(f"Tokenized Input: {inputs}")
+        # Return the tokenized description and the full transaction for later use (including amount)
+        return inputs, transaction  # Return entire transaction (including the amount)
+
+    
+def categorize_transactions_using_ai(transactions):
+    # Step 1: Create a sample dataset
+    data = {
+        "description": [
+            "grocery store purchase for vegetables",
+            "movie ticket for blockbuster",
+            "electricity bill payment",
+            "mall purchase for clothes",
+            "charity donation",
+            "internet bill payment",
+            "restaurant meal with friends",
+            "supermarket shopping"
+        ],
+        "category": [
+            "groceries",
+            "entertainment",
+            "utilities",
+            "shopping",
+            "others",
+            "utilities",
+            "entertainment",
+            "groceries"
+        ]
+    }
+
+    df = pd.DataFrame(data)
+
+    # Convert DataFrame to Hugging Face Dataset
+    dataset = PandasDataset.from_pandas(df)
+
+    # Map category labels to numeric values
+    category_map = {cat: idx for idx, cat in enumerate(set(df['category']))}
+    dataset = dataset.map(lambda x: {'labels': category_map[x['category']]})
+
+    # Step 3: Load the tokenizer
+    tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
+
+    # Ensure padding token exists
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
+    # Tokenization (INLINE)
+    tokenized_datasets = dataset.map(
+        lambda examples: tokenizer(
+            examples['description'], truncation=True, padding="max_length", max_length=256
+        ),
+        batched=True
+    )    
+
+    # Set the format of the dataset (PyTorch tensors)
+    tokenized_datasets.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
+
+    # Split dataset into training and validation sets
+    train_size = int(0.8 * len(tokenized_datasets))
+    train_dataset = tokenized_datasets.select(range(train_size))
+    val_dataset = tokenized_datasets.select(range(train_size, len(tokenized_datasets)))
+
+    print("Training set:", len(train_dataset))
+    print("Validation set:", len(val_dataset))
+
+    # Step 6: Load the pre-trained DistilBERT model
+    model = DistilBertForSequenceClassification.from_pretrained(
+        "distilbert-base-uncased", num_labels=len(category_map)
+    )
+
+    # Step 7: Define training arguments
+    training_args = TrainingArguments(
+        output_dir='./results',
+        num_train_epochs=3,
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=16,
+        warmup_steps=500,
+        weight_decay=0.01,
+        logging_dir='./logs',
+        logging_steps=10,
+        evaluation_strategy="epoch",
+    )
+
+    # Step 8: Define the Trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+    )
+
+    # Step 9: Train the model
+    trainer.train()
+
+    # Step 10: Evaluate the model
+    results = trainer.evaluate()
+        # Step 9: Predict categories for new transactions
+    transaction_descriptions = [t[2] for t in transactions]
+
+    # Move model to the correct device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
+    # Tokenize user transactions
+    inputs = tokenizer(transaction_descriptions, padding=True, truncation=True, return_tensors="pt", max_length=256)
+    inputs = {key: val.to(device) for key, val in inputs.items()}
+
+    # Get predictions
+    with torch.no_grad():
+        outputs = model(**inputs)
+        logits = outputs.logits
+        predicted_class_ids = torch.argmax(logits, dim=-1)
+
+    # Map predictions back to category names
+    categories = {v: k for k, v in category_map.items()}
+    predicted_categories = [categories[idx] for idx in predicted_class_ids.tolist()]
+
+    # Step 10: Organize transactions into categories
+    categorized_transactions = {
+        'groceries': [],
+        'entertainment': [],
+        'utilities': [],
+        'shopping': [],
+        'others': []
+    }
+
+    for transaction, category in zip(transactions, predicted_categories):
+        categorized_transactions[category].append(transaction)
+
+    return categorized_transactions
 
 
 def update_interactions_based_on_tweet(user_name, tweet, sentiment, user_mapping, item_mapping, interactions):
@@ -473,6 +632,37 @@ def get_sentiment(user_query):
 def get_chat_history():
     return memory.load_memory_variables({})
 
+def voice_to_text_model():
+    # Model path (download manually if needed)
+    MODEL_PATH = "models/vosk-model-small-en-us-0.15"
+    MODEL_URL = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+
+    if not os.path.exists(MODEL_PATH):
+        print("Downloading Vosk model...")
+        os.makedirs("models", exist_ok=True)
+        model_zip = "models/vosk_model.zip"
+
+        with requests.get(MODEL_URL, stream=True) as r:
+            with open(model_zip, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+        print("Extracting model...")
+        with zipfile.ZipFile(model_zip, "r") as zip_ref:
+            zip_ref.extractall("models")
+
+        os.remove(model_zip)
+        print("Model downloaded and ready to use.")
+
+    # Load the Vosk model
+    model = Model(MODEL_PATH)
+
+    # Audio queue for real-time processing
+    audio_queue = queue.Queue()
+
+
+
+
     
     
 # Implement your functions and routes here (e.g., to handle user requests)
@@ -495,7 +685,7 @@ def dashboard():
         # Categorize transactions
         print("transactions :")
         print(transactions)
-        categorized_transactions = categorize_transactions(transactions)
+        categorized_transactions = categorize_transactions_using_ai(transactions)
         print("categorized transactions: ")
         print(categorized_transactions)
 
@@ -511,16 +701,17 @@ def dashboard():
         print("tweet recommmendations: ")
         print(tweet_recommendations)
         
-        products_recommened = prod_recommends.recommend_products(username, top_k=10)
+        products_recommened = prod_recommends.recommend_products(f"C_{random.randint(1, 100)}", top_k=10)
         print("prod recommmendations: ")
-        print(products_recommened)
+        print(products_recommened.values.tolist())
         # return render_template('dashboard.html', user_data=user_data, transactions=transactions,
                                # savings_balance=savings_balance, loan_data=loan_data, recommendations=tweet_recommendations,
                                # investment_strategy=investment_strategy, product_recommendations=product_recommendations,
                                # notifications=notifications, categorized_transactions=categorized_transactions,
                                # pie_chart_data=pie_chart_data, username=username)  # Pass the username to the template
         return render_template('dashboard.html', user_data=user_data, transactions=transactions,
-                               recommendations=tweet_recommendations,
+                               tweet_recommendations=tweet_recommendations,
+                               recommendations=products_recommened.values.tolist(),
                                categorized_transactions=categorized_transactions,notifications=notifications,investment_strategy=investment_strategy,
                                pie_chart_data=pie_chart_data, username=username)  # Pass the username to the template
     else:
@@ -534,8 +725,19 @@ def chat():
         user_id = "user123"  # Simulating a unique user
         if user_query:
             recommendation = get_chat_based_recommendations(user_query, user_id)
-            
-    return render_template("chat_interface.html", recommendation=recommendation )
+            bot_response = recommendation
+
+            # Return the response in JSON format
+            return jsonify({"recommendation": bot_response})
+            #return render_template("dashboard.html", recommendation=recommendation )
+            #return render_template("chat_interface.html", recommendation=recommendation )
+
+
+@app.route('/transcribe', methods=['POST'])
+def transcribe():
+    #transcription = transcribe_audio()
+    recommendation = get_chat_based_recommendations(transcription, user_id)
+    return jsonify({"text": transcription, "response": chatbot_response})# Route to handle login form submission
     
 # Route to handle login form submission
 @app.route('/login', methods=['POST'])
@@ -559,4 +761,4 @@ def handle_login():
 
 # Start Flask app
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=7860, debug=True)
