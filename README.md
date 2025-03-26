@@ -14,7 +14,8 @@
 ---
 
 ## 🎯 Introduction
-A brief overview of your project and its purpose. Mention which problem statement are your attempting to solve. Keep it concise and engaging.
+ A brief overview of your project and its purpose. Mention which problem statement are your attempting to solve. Keep it concise and engaging.
+ Modern customers expect highly personalized experiences that cater to their unique preferences
 
 ## 🎥 Demo
 🔗 [Live Demo](#) (if applicable)  
@@ -24,37 +25,53 @@ A brief overview of your project and its purpose. Mention which problem statemen
 ![Screenshot 1](link-to-image)
 
 ## 💡 Inspiration
-What inspired you to create this project? Describe the problem you're solving.
+Our approach to the problem statement is to consider bank customers, who will be availing one or more of the bank products and how we can personalize their experience and provide recommendations which optimizes their engagement. 
 
 ## ⚙️ What It Does
-Explain the key features and functionalities of your project.
+ - 🔹 Categorize based on users transaction history and provide recommendations using AI
+ - 🔹 Alert notification based on transaction limit
+ - 🔹 Provide product recommendation to the user using clustering model
+ - 🔹 Provide recommendation based on social media data for the user
+ - 🔹 A chat bot which provided recommendations based on key in text or uploaded voice message
+ - 🔹 Investment Strategy using market trends
 
 ## 🛠️ How We Built It
-Briefly outline the technologies, frameworks, and tools used in development.
+Flask-based web application with functionalities for financial transaction management, sentiment analysis, AI-driven recommendations, and user interaction handling. Key functionalities include:
+User Authentication: Login and session management.
+Database Operations: Fetching user data, transactions, savings, and loan details from DB.
+Sentiment Analysis: Extracting sentiments from tweets and using them for financial product recommendations.
+AI-Powered Recommendations:
+Personalized product recommendations based on tweets (using LightFM).
+Chat-based recommendations using Sentence-BERT and FAISS.
+Transaction categorization using DistilBERT.
+Financial Alerts & Strategy: Notifications based on savings goals, transaction limits, and loan repayments.
+Visualization: Transaction category pie chart with Plotly.![image](https://github.com/user-attachments/assets/df51a46f-c475-4e62-b4e9-3795dd3ce90d)
+
 
 ## 🚧 Challenges We Faced
-Describe the major technical or non-technical challenges your team encountered.
+- Open AI provided relevant recommendations but its services can be availed through paid subscription
+- Dependency resolution for different models while creating docker image
+
 
 ## 🏃 How to Run
 1. Clone the repository  
    ```sh
-   git clone https://github.com/your-repo.git
+   git clone  https://github.com/ewfx/aidhp-smart-reconcilers.git
    ```
 2. Install dependencies  
    ```sh
-   npm install  # or pip install -r requirements.txt (for Python)
+    pip install -r requirements.txt (for Python)
    ```
 3. Run the project  
    ```sh
-   npm start  # or python app.py
+    python app.py
    ```
 
 ## 🏗️ Tech Stack
-- 🔹 Frontend: React / Vue / Angular
-- 🔹 Backend: Node.js / FastAPI / Django
-- 🔹 Database: PostgreSQL / Firebase
-- 🔹 Other: OpenAI API / Twilio / Stripe
+- 🔹 Frontend: HTML
+- 🔹 Backend: Python
+- 🔹 Database: SqlLightDB
+- 🔹 Other: Flask / Docker
 
 ## 👥 Team
-- **Your Name** - [GitHub](#) | [LinkedIn](#)
-- **Teammate 2** - [GitHub](#) | [LinkedIn](#)
+- **aidhp-smart-reconcilers** - [GitHub](#) | [LinkedIn](#)
