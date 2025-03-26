@@ -66,6 +66,8 @@ Visualization: Transaction category pie chart with Plotly.![image](https://githu
    ```sh
     python app.py
    ```
+4. Applicatin is hosted on hugging-face spaces (public): https://priaas-smartreconcilers.hf.space/
+   login - Priya, passoword - password123
 
 ## 🏗️ Tech Stack
 - 🔹 Frontend: HTML
